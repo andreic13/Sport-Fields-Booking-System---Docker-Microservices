@@ -1,0 +1,1 @@
+docker service logs scd_expirer-worker -f

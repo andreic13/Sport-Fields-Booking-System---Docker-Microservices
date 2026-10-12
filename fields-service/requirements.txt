@@ -1,0 +1,8 @@
+fastapi # framework pentru rute http
+uvicorn # serverul care ruleaza fast-api
+python-dotenv # citeste variabilele din .env
+sqlalchemy # folosirea tabelelor in python, fara sql
+psycopg2-binary # driverul pt postgre-sql (SQLAlchemy->Driver->database)
+python-jose # biblioteca pt validare jwt-uri
+requests # http requests
+python-keycloak # interactiune cu keycloak

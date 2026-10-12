@@ -1,0 +1,2 @@
+pika==1.3.2 # interactiune cu rabbitmq
+requests==2.31.0 # fac request la bookings-service

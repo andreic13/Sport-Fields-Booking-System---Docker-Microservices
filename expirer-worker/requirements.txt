@@ -1,0 +1,2 @@
+sqlalchemy # folosirea tabelelor in python
+psycopg2-binary # driverul pt postgre-sql (SQLAlchemy->Driver->database)

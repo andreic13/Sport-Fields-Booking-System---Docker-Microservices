@@ -1,0 +1,166 @@
+version: "3.9"
+
+services:
+
+  user-service:
+    image: user-service-img
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres-scd:5432/scd_db
+      KEYCLOAK_URL: http://keycloak:8080
+      OIDC_URL: http://keycloak:8080/realms/scd-realm/.well-known/openid-configuration
+      REALM: scd-realm
+    ports:
+      - "8001:8000"
+    depends_on:
+      - postgres-scd
+      - keycloak
+    networks:
+      - auth-net
+      - db-scd-net
+
+  fields-service:
+    image: fields-service-img
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres-scd:5432/scd_db
+      KEYCLOAK_URL: http://keycloak:8080
+      OIDC_URL: http://keycloak:8080/realms/scd-realm/.well-known/openid-configuration
+      REALM: scd-realm
+    ports:
+      - "8002:8000"
+    depends_on:
+      - postgres-scd
+      - keycloak
+    networks:
+      - auth-net
+      - db-scd-net
+
+  bookings-service:
+    image: bookings-service-img
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres-scd:5432/scd_db
+      KEYCLOAK_URL: http://keycloak:8080
+      OIDC_URL: http://keycloak:8080/realms/scd-realm/.well-known/openid-configuration
+      REALM: scd-realm
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: admin
+      RABBITMQ_PASSWORD: admin
+      INTERNAL_TOKEN: secret123
+      TZ: Europe/Bucharest
+    ports:
+      - "8003:8000"
+    deploy:
+      replicas: 3
+    depends_on:
+      - postgres-scd
+      - keycloak
+      - redis
+      - rabbitmq
+    networks:
+      - auth-net
+      - db-scd-net
+      - redis-net
+      - rabbit-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.1
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+    command: ["start-dev"]
+    environment:
+      KC_DB: postgres
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: admin123
+      KC_DB_URL_HOST: postgres-keycloak
+      KC_DB_URL_DATABASE: keycloak_db
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-keycloak
+    networks:
+      - auth-net
+      - kc-db-net
+
+  postgres-keycloak:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - kc-db-net
+
+  postgres-scd:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: scd_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      TZ: Europe/Bucharest
+      PGTZ: Europe/Bucharest
+    volumes:
+      - scd-db-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - db-scd-net
+
+  redis:
+    image: redis:7
+    networks:
+      - redis-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - rabbit-net
+
+  notifications-worker:
+    image: notifications-worker-img
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: admin
+      RABBITMQ_PASSWORD: admin
+      BOOKINGS_URL: http://bookings-service:8000
+      INTERNAL_TOKEN: secret123
+      TZ: Europe/Bucharest
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbit-net
+
+  expirer-worker:
+    image: expirer-worker-img
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres-scd:5432/scd_db
+      TZ: Europe/Bucharest
+    depends_on:
+      - postgres-scd
+    networks:
+      - db-scd-net
+
+networks:
+  auth-net:
+    driver: overlay
+  db-scd-net:
+    driver: overlay
+  kc-db-net:
+    driver: overlay
+  redis-net:
+    driver: overlay
+  rabbit-net:
+    driver: overlay
+
+volumes:
+  keycloak-data:
+  keycloak-db-data:
+  scd-db-data:
